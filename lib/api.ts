@@ -47,9 +47,56 @@ export interface SimulationResult {
   accounting_records: AccountingEntry[];
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "/api";
+const API_BASE_URL = "/api";
+const BANKING_API_BASE = `${API_BASE_URL}/banking`;
+const CORE_API_BASE = `${API_BASE_URL}/core`;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
+
+type TokenGetter = () => string | null | undefined;
+
+let authTokenGetter: TokenGetter | null = null;
+
+export function setAuthTokenGetter(getter: TokenGetter | null): void {
+  authTokenGetter = getter;
+}
+
+function getAuthToken(): string | null {
+  if (authTokenGetter) {
+    return authTokenGetter() || null;
+  }
+
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    return localStorage.getItem("token") || localStorage.getItem("access_token");
+  } catch {
+    return null;
+  }
+}
+
+function buildHeaders(headers: HeadersInit = {}): HeadersInit {
+  const token = getAuthToken();
+
+  if (!token) {
+    return headers;
+  }
+
+  return {
+    ...headers,
+    Authorization: `Bearer ${token}`,
+  };
+}
+
+function buildBankingUrl(path: string): string {
+  return `${BANKING_API_BASE}${path}`;
+}
+
+export function buildCoreUrl(path: string): string {
+  return `${CORE_API_BASE}${path}`;
+}
 
 async function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -82,13 +129,13 @@ export async function runSimulation(
   request: SimulationRequest
 ): Promise<ApiResponse<SimulationResult>> {
   try {
-    const url = `${API_BASE_URL}/accounts/${request.account_number}/interest_simulations`;
+    const url = buildBankingUrl(`/accounts/${request.account_number}/interest_simulations`);
     
     const response = await fetchWithRetry(url, {
       method: "POST",
-      headers: {
+      headers: buildHeaders({
         "Content-Type": "application/json",
-      },
+      }),
       body: JSON.stringify({
         initial_balance: request.initial_balance,
         start_date: request.start_date,
@@ -154,13 +201,13 @@ export interface Account {
 
 export async function fetchAccounts(): Promise<ApiResponse<Account[]>> {
   try {
-    const url = `${API_BASE_URL}/accounts`;
+    const url = buildBankingUrl("/accounts");
     
     const response = await fetchWithRetry(url, {
       method: "GET",
-      headers: {
+      headers: buildHeaders({
         "Content-Type": "application/json",
-      },
+      }),
     });
 
     if (!response.ok) {
