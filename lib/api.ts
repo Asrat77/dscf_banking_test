@@ -270,6 +270,104 @@ export function buildCoreUrl(path: string): string {
   return `${CORE_API_BASE}${path}`;
 }
 
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface LoginData {
+  access_token: string;
+}
+
+function extractLoginToken(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const data = payload as Record<string, unknown>;
+  const nested = data.data && typeof data.data === "object"
+    ? (data.data as Record<string, unknown>)
+    : null;
+
+  const directToken =
+    typeof data.access_token === "string"
+      ? data.access_token
+      : typeof data.token === "string"
+        ? data.token
+        : null;
+
+  if (directToken) {
+    return directToken;
+  }
+
+  if (!nested) {
+    return null;
+  }
+
+  if (typeof nested.access_token === "string") {
+    return nested.access_token;
+  }
+
+  if (typeof nested.token === "string") {
+    return nested.token;
+  }
+
+  return null;
+}
+
+export async function loginWithCoreAuth(
+  credentials: LoginRequest
+): Promise<ApiResponse<LoginData>> {
+  try {
+    const response = await fetch(buildCoreUrl("/auth/login"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(credentials),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      const errorData = payload as Record<string, unknown>;
+      const errorMessage =
+        (typeof errorData.error === "string" && errorData.error) ||
+        (typeof errorData.message === "string" && errorData.message) ||
+        "Login failed. Please check your credentials and try again.";
+
+      return {
+        success: false,
+        error: errorMessage,
+        details: payload,
+      };
+    }
+
+    const token = extractLoginToken(payload);
+
+    if (!token) {
+      return {
+        success: false,
+        error: "Login succeeded but no access token was returned.",
+        details: payload,
+      };
+    }
+
+    return {
+      success: true,
+      data: {
+        access_token: token,
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: "Network error. Please check your connection and try again.",
+      details: error,
+    };
+  }
+}
+
 async function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
