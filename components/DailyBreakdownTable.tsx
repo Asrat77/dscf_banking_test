@@ -45,7 +45,16 @@ export default function DailyBreakdownTable({ data }: DailyBreakdownTableProps) 
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedData = sortedData.slice(startIndex, startIndex + itemsPerPage);
 
-  const SortIcon = ({ field }: { field: SortField }) => {
+  const cumulativeByDate = new Map<string, number>();
+  let runningTotal = 0;
+  const chronological = [...data].sort((a, b) => a.date.localeCompare(b.date));
+  for (const day of chronological) {
+    const dailyInterest = parseFloat(day.interest);
+    runningTotal += Number.isFinite(dailyInterest) ? dailyInterest : 0;
+    cumulativeByDate.set(day.date, runningTotal);
+  }
+
+  const renderSortIcon = (field: SortField) => {
     if (sortField !== field) {
       return <span className="text-gray-500">⇅</span>;
     }
@@ -63,6 +72,9 @@ export default function DailyBreakdownTable({ data }: DailyBreakdownTableProps) 
         <p className="text-sm text-gray-600 mt-1">
           Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, sortedData.length)} of {sortedData.length} days
         </p>
+        <p className="text-xs text-gray-500 mt-1">
+          Interest is shown separately from balance. Cumulative interest shows total earned over time.
+        </p>
       </div>
 
       <div className="overflow-x-auto">
@@ -74,7 +86,7 @@ export default function DailyBreakdownTable({ data }: DailyBreakdownTableProps) 
                 className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  Date <SortIcon field="date" />
+                  Date {renderSortIcon("date")}
                 </div>
               </th>
               <th
@@ -82,7 +94,7 @@ export default function DailyBreakdownTable({ data }: DailyBreakdownTableProps) 
                 className="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
               >
                 <div className="flex items-center justify-end gap-2">
-                  Opening Balance <SortIcon field="opening_balance" />
+                  Opening Balance {renderSortIcon("opening_balance")}
                 </div>
               </th>
               <th
@@ -90,15 +102,18 @@ export default function DailyBreakdownTable({ data }: DailyBreakdownTableProps) 
                 className="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
               >
                 <div className="flex items-center justify-end gap-2">
-                  Interest <SortIcon field="interest" />
+                  Interest {renderSortIcon("interest")}
                 </div>
+              </th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
+                Cumulative Interest
               </th>
               <th
                 onClick={() => handleSort("closing_balance")}
                 className="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
               >
                 <div className="flex items-center justify-end gap-2">
-                  Closing Balance <SortIcon field="closing_balance" />
+                  Closing Balance {renderSortIcon("closing_balance")}
                 </div>
               </th>
               <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
@@ -124,6 +139,9 @@ export default function DailyBreakdownTable({ data }: DailyBreakdownTableProps) 
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 text-right font-mono">
                   +{formatCurrency(day.interest)}
                 </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-right font-mono">
+                  {formatCurrency(cumulativeByDate.get(day.date) ?? 0)}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-mono font-semibold">
                   {formatCurrency(day.closing_balance)}
                 </td>
@@ -136,6 +154,7 @@ export default function DailyBreakdownTable({ data }: DailyBreakdownTableProps) 
         </table>
       </div>
 
+      {/* Pagination Footer */}
       {totalPages > 1 && (
         <div className="p-4 border-t border-gray-200 flex items-center justify-between">
           <button
@@ -153,7 +172,7 @@ export default function DailyBreakdownTable({ data }: DailyBreakdownTableProps) 
                 onClick={() => setCurrentPage(page)}
                 className={`px-3 py-1 rounded-lg text-sm transition-colors ${
                   currentPage === page
-                    ? "bg-primary-600 text-white"
+                    ? "bg-workbench-600 text-white"
                     : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
                 }`}
               >

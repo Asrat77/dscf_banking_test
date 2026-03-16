@@ -1,35 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useSimulation } from "@/hooks/useSimulation";
-import SimulationForm from "@/components/SimulationForm";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
+import SimulationForm, { InterestPanelState } from "@/components/SimulationForm";
+import InterestConfigurationPanel from "@/components/InterestConfigurationPanel";
+import TransactionBuilder from "@/components/TransactionBuilder";
 import ResultsDisplay from "@/components/ResultsDisplay";
-import { getAccessToken } from "@/lib/auth";
+import { clearAccessToken } from "@/lib/auth";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Home() {
-  const router = useRouter();
-  const [authState, setAuthState] = useState({
-    isAuthReady: false,
-    isAuthenticated: false,
+  const { isAuthReady, isAuthenticated, refreshAuth } = useAuthGuard({
+    requireAuth: true,
+    redirectTo: "/login",
   });
-
-  useEffect(() => {
-    const token = getAccessToken();
-
-    if (!token) {
-      queueMicrotask(() => {
-        setAuthState({ isAuthReady: true, isAuthenticated: false });
-      });
-      router.replace("/login");
-      return;
-    }
-
-    queueMicrotask(() => {
-      setAuthState({ isAuthReady: true, isAuthenticated: true });
-    });
-  }, [router]);
 
   const {
     formData,
@@ -40,28 +25,53 @@ export default function Home() {
     submitSimulation,
     resetSimulation,
   } = useSimulation();
+  const [interestPanelState, setInterestPanelState] = useState<InterestPanelState>({
+    config: null,
+    tiers: [],
+    isLoading: false,
+    error: null,
+    hasMultipleActive: false,
+    hasSelection: false,
+  });
+  const [reloadInterestConfig, setReloadInterestConfig] = useState<null | (() => void)>(null);
+  const [transactionsError, setTransactionsError] = useState<string | null>(null);
 
-  if (!authState.isAuthReady || !authState.isAuthenticated) {
+  const handleSignOut = () => {
+    clearAccessToken();
+    resetSimulation();
+    refreshAuth();
+  };
+
+  if (!isAuthReady || !isAuthenticated) {
     return null;
   }
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-[var(--bg-app)]">
       {/* Sticky Left Rail - Scenario Configuration */}
-      <aside className="w-full lg:w-[420px] lg:h-screen lg:sticky lg:top-0 border-b lg:border-b-0 lg:border-r border-[var(--border-panel)] bg-[var(--bg-panel)] overflow-y-auto z-10 shadow-panel">
-        <div className="p-6">
+      <aside className="w-full lg:w-[520px] lg:h-screen lg:sticky lg:top-0 border-b lg:border-b-0 lg:border-r border-[var(--border-panel)] bg-[var(--bg-panel)] overflow-y-auto z-10 shadow-panel">
+        <div className="p-5">
           <header className="mb-8 flex items-center justify-between">
             <div>
               <h1 className="text-lg font-bold text-workbench-900 tracking-tight">QA Workbench</h1>
               <p className="text-xs text-workbench-500 font-mono mt-1">v2.0.0 • Interest Sim</p>
             </div>
-            <button 
-              onClick={resetSimulation}
-              className="text-xs font-medium text-action hover:text-action-hover transition-colors"
-              title="Reset Scenario"
-            >
-              Reset
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={resetSimulation}
+                className="btn-secondary text-xs"
+                title="Reset Scenario"
+              >
+                Reset
+              </button>
+              <button
+                onClick={handleSignOut}
+                className="btn-secondary text-xs"
+                title="Sign out"
+              >
+                Sign out
+              </button>
+            </div>
           </header>
 
           <div className="space-y-6 animate-enter-rail">
@@ -74,6 +84,9 @@ export default function Home() {
                 onChange={setFormData}
                 onSubmit={submitSimulation}
                 isLoading={isLoading}
+                onInterestStateChange={setInterestPanelState}
+                onInterestReloadReady={setReloadInterestConfig}
+                onTransactionsError={setTransactionsError}
               />
             </div>
             
@@ -88,6 +101,49 @@ export default function Home() {
       <main className="flex-1 min-w-0 bg-[var(--bg-app)] relative">
         <div className="max-w-5xl mx-auto p-6 lg:p-10 animate-enter-workspace">
           <AnimatePresence mode="wait">
+            <motion.div
+              key="interest-config-panel"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="mb-8"
+            >
+              <InterestConfigurationPanel
+                config={interestPanelState.config}
+                tiers={interestPanelState.tiers}
+                isLoading={interestPanelState.isLoading}
+                error={interestPanelState.error}
+                hasMultipleActive={interestPanelState.hasMultipleActive}
+                hasSelection={interestPanelState.hasSelection}
+                onReload={() => reloadInterestConfig?.()}
+              />
+            </motion.div>
+
+            <motion.div
+              key="transactions-panel"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="mb-8"
+            >
+              <div className="rounded-lg border border-workbench-200 bg-white p-4 shadow-sm">
+                <h3 className="text-xs font-semibold text-workbench-500 uppercase tracking-wider mb-3">
+                  Transactions (Optional)
+                </h3>
+                <TransactionBuilder
+                  transactions={formData.transactions}
+                  onChange={(transactions) =>
+                    setFormData((prev) => ({ ...prev, transactions }))
+                  }
+                  startDate={formData.startDate}
+                  endDate={formData.endDate}
+                />
+                {transactionsError && (
+                  <p className="mt-3 text-sm text-red-600">{transactionsError}</p>
+                )}
+              </div>
+            </motion.div>
+
             {error && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
@@ -165,4 +221,3 @@ export default function Home() {
     </div>
   );
 }
-

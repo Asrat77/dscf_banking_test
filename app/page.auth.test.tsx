@@ -1,11 +1,12 @@
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import HomePage from "@/app/page";
 
-const { replaceMock, getAccessTokenMock } = vi.hoisted(() => ({
+const { replaceMock, tokenStore } = vi.hoisted(() => ({
   replaceMock: vi.fn(),
-  getAccessTokenMock: vi.fn(),
+  tokenStore: { value: null as string | null },
 }));
 
 vi.mock("next/navigation", () => ({
@@ -15,7 +16,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/auth", () => ({
-  getAccessToken: getAccessTokenMock,
+  getAccessToken: () => tokenStore.value,
+  clearAccessToken: () => {
+    tokenStore.value = null;
+  },
 }));
 
 vi.mock("@/hooks/useSimulation", () => ({
@@ -49,12 +53,10 @@ vi.mock("@/components/ResultsDisplay", () => ({
 describe("Home auth redirect", () => {
   beforeEach(() => {
     replaceMock.mockReset();
-    getAccessTokenMock.mockReset();
+    tokenStore.value = null;
   });
 
   it("redirects unauthenticated users to /login", async () => {
-    getAccessTokenMock.mockReturnValue(null);
-
     render(<HomePage />);
 
     await waitFor(() => {
@@ -63,14 +65,31 @@ describe("Home auth redirect", () => {
   });
 
   it("does not redirect authenticated users", async () => {
-    getAccessTokenMock.mockReturnValue("access-token");
+    tokenStore.value = "access-token";
 
     render(<HomePage />);
 
     await waitFor(() => {
-      expect(getAccessTokenMock).toHaveBeenCalled();
+      expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
     });
 
     expect(replaceMock).not.toHaveBeenCalled();
+  });
+
+  it("clears auth and redirects on sign out", async () => {
+    tokenStore.value = "access-token";
+
+    const user = userEvent.setup();
+
+    render(<HomePage />);
+
+    const signOutButton = await screen.findByRole("button", { name: /sign out/i });
+    await user.click(signOutButton);
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith("/login");
+    });
+
+    expect(tokenStore.value).toBeNull();
   });
 });

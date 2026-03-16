@@ -29,34 +29,41 @@ ChartJS.register(
   Filler
 );
 
-interface BalanceChartProps {
+interface InterestChartProps {
   data: DailyBreakdown[];
 }
 
-export default function BalanceChart({ data }: BalanceChartProps) {
+export default function InterestChart({ data }: InterestChartProps) {
   const chartRef = useRef<ChartJS<"line">>(null);
+
+  let runningTotal = 0;
+  const cumulative = data.map((day) => {
+    const daily = parseFloat(day.interest);
+    runningTotal += Number.isFinite(daily) ? daily : 0;
+    return runningTotal;
+  });
 
   const chartData = {
     labels: data.map((day) => formatDate(day.date)),
     datasets: [
       {
-        label: "Balance",
-        data: data.map((day) => parseFloat(day.closing_balance)),
-        borderColor: "rgb(239, 68, 68)",
+        label: "Cumulative Interest",
+        data: cumulative,
+        borderColor: "rgb(14, 116, 144)",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         backgroundColor: (context: any) => {
           const ctx = context.chart.ctx;
           const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-          gradient.addColorStop(0, "rgba(239, 68, 68, 0.3)");
-          gradient.addColorStop(1, "rgba(239, 68, 68, 0)");
+          gradient.addColorStop(0, "rgba(14, 116, 144, 0.35)");
+          gradient.addColorStop(1, "rgba(14, 116, 144, 0)");
           return gradient;
         },
         borderWidth: 3,
         fill: true,
-        tension: 0.4,
+        tension: 0.35,
         pointRadius: 0,
         pointHoverRadius: 6,
-        pointHoverBackgroundColor: "rgb(239, 68, 68)",
+        pointHoverBackgroundColor: "rgb(14, 116, 144)",
         pointHoverBorderColor: "white",
         pointHoverBorderWidth: 2,
       },
@@ -79,18 +86,16 @@ export default function BalanceChart({ data }: BalanceChartProps) {
       },
       tooltip: {
         backgroundColor: "rgba(255, 255, 255, 0.98)",
-        titleColor: "#1f2937",
-        bodyColor: "#1f2937",
-        borderColor: "rgba(239, 68, 68, 0.3)",
+        titleColor: "#0f172a",
+        bodyColor: "#0f172a",
+        borderColor: "rgba(14, 116, 144, 0.35)",
         borderWidth: 1,
         padding: 12,
         displayColors: false,
         callbacks: {
-          title: (context) => {
-            return context[0].label;
-          },
+          title: (context) => context[0].label,
           label: (context) => {
-            return `Balance: ${formatCurrency(context.parsed.y ?? 0)}`;
+            return `Cumulative interest: ${formatCurrency(context.parsed.y ?? 0)}`;
           },
         },
       },
@@ -124,9 +129,7 @@ export default function BalanceChart({ data }: BalanceChartProps) {
           font: {
             size: 11,
           },
-          callback: (value) => {
-            return `ETB ${(value as number).toLocaleString()}`;
-          },
+          callback: (value) => `ETB ${(value as number).toLocaleString()}`,
         },
         border: {
           display: false,
@@ -142,9 +145,9 @@ export default function BalanceChart({ data }: BalanceChartProps) {
       className="glass-strong rounded-xl p-6 border border-gray-200"
     >
       <div className="mb-6">
-        <h3 className="text-xl font-bold text-gray-900">Balance Over Time</h3>
+        <h3 className="text-xl font-bold text-gray-900">Interest Over Time</h3>
         <p className="text-sm text-gray-600 mt-1">
-          Visual representation of balance changes throughout the simulation period
+          Cumulative interest earned across the simulation period
         </p>
       </div>
 

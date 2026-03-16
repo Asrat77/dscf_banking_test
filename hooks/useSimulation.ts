@@ -16,7 +16,7 @@ export interface UseSimulationReturn {
   result: SimulationResult | null;
   isLoading: boolean;
   error: string | null;
-  submitSimulation: () => Promise<void>;
+  submitSimulation: (resolvedInitialBalance?: number) => Promise<void>;
   resetSimulation: () => void;
   updateField: <K extends keyof SimulationFormData>(
     field: K,
@@ -48,15 +48,17 @@ export function useSimulation(): UseSimulationReturn {
     []
   );
 
-  const submitSimulation = useCallback(async () => {
+  const submitSimulation = useCallback(async (resolvedInitialBalance?: number) => {
     setIsLoading(true);
     setError(null);
     setResult(null);
 
     try {
+      const initialBalanceValue =
+        resolvedInitialBalance ?? parseFloat(formData.initialBalance);
       const request: SimulationRequest = {
         account_number: formData.accountId,
-        initial_balance: parseFloat(formData.initialBalance),
+        initial_balance: initialBalanceValue,
         start_date: formData.startDate,
         end_date: formData.endDate,
         transactions: formData.transactions.map((tx) => ({

@@ -16,7 +16,7 @@ export default function SummaryCard({
   amount,
   subtitle,
   icon = "💰",
-  gradient = "from-primary-600 to-accent-600",
+  gradient = "from-action to-action-hover",
 }: SummaryCardProps) {
   return (
     <motion.div

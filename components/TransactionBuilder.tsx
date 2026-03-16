@@ -20,10 +20,17 @@ export default function TransactionBuilder({
 }: TransactionBuilderProps) {
   const [errors, setErrors] = useState<Record<number, string>>({});
   const [addTransactionError, setAddTransactionError] = useState("");
+  const startDateId = "simulationStartDate";
+  const endDateId = "simulationEndDate";
 
   const addTransaction = () => {
     if (!startDate || !endDate) {
       setAddTransactionError("Set simulation start and end dates before adding transactions.");
+      const target = document.getElementById(startDate ? endDateId : startDateId);
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        target.focus();
+      }
       return;
     }
 
@@ -118,7 +125,7 @@ export default function TransactionBuilder({
         <button
           type="button"
           onClick={addTransaction}
-          className="px-4 py-2 bg-action hover:bg-action-hover text-white rounded-lg text-sm font-medium transition-colors duration-200 flex items-center gap-2"
+          className="btn-primary text-sm gap-2"
         >
           <span>+</span>
           Add Transaction
@@ -183,36 +190,36 @@ export default function TransactionBuilder({
                       Type
                     </label>
                     <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => updateTransaction(index, "type", "deposit")}
-                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                          transaction.type === "deposit"
-                            ? "bg-green-600 text-white shadow-md"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                        }`}
-                      >
-                        Deposit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => updateTransaction(index, "type", "withdrawal")}
-                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                          transaction.type === "withdrawal"
-                            ? "bg-red-600 text-white shadow-md"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                        }`}
-                      >
-                        Withdrawal
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => updateTransaction(index, "type", "deposit")}
+                      className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        transaction.type === "deposit"
+                          ? "bg-green-600 text-white shadow-md"
+                          : "btn-secondary text-gray-700"
+                      }`}
+                    >
+                      Deposit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateTransaction(index, "type", "withdrawal")}
+                      className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        transaction.type === "withdrawal"
+                          ? "bg-red-600 text-white shadow-md"
+                          : "btn-secondary text-gray-700"
+                      }`}
+                    >
+                      Withdrawal
+                    </button>
                   </div>
+                </div>
 
                   <div className="md:col-span-2 flex items-end">
                     <button
                       type="button"
                       onClick={() => removeTransaction(index)}
-                      className="w-full px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-sm font-medium transition-colors duration-200"
+                      className="btn-secondary w-full text-sm text-red-600 border-red-200 hover:bg-red-50"
                     >
                       Remove
                     </button>

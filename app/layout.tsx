@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
@@ -8,9 +8,15 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-jetbrains-mono",
+});
+
 export const metadata: Metadata = {
-  title: "Interest Simulation | Banking System",
-  description: "Run what-if scenarios for interest calculations using existing account data",
+  title: "Interest QA Workbench | Banking System",
+  description: "Advanced simulation environment for interest calculation scenarios",
 };
 
 export const viewport: Viewport = {
@@ -24,8 +30,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={inter.variable}>
-      <body className="antialiased">
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} h-full`}>
+      <body className="antialiased min-h-screen bg-[var(--bg-app)] text-[var(--text-primary)]">
         {children}
       </body>
     </html>

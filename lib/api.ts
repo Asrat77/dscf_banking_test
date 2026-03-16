@@ -271,7 +271,7 @@ export function buildCoreUrl(path: string): string {
 }
 
 export interface LoginRequest {
-  email: string;
+  email_or_phone: string;
   password: string;
 }
 
@@ -324,7 +324,10 @@ export async function loginWithCoreAuth(
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(credentials),
+      body: JSON.stringify({
+        email_or_phone: credentials.email_or_phone,
+        password: credentials.password,
+      }),
     });
 
     const payload = await response.json().catch(() => ({}));
@@ -464,9 +467,60 @@ export async function runSimulation(
 export interface Account {
   id: number;
   account_number: string;
-  customer_name: string;
-  account_type: string;
-  status: string;
+  customer_name?: string;
+  name?: string;
+  account_type?: string;
+  status?: string;
+  current_balance?: number | string;
+  virtual_account_product?: {
+    id: number;
+    product_code?: string;
+    product_name?: string;
+  };
+  virtual_account_product_id?: number;
+}
+
+export interface InterestRateType {
+  id: number;
+  code?: string;
+  name?: string;
+  description?: string;
+}
+
+export interface VirtualAccountProduct {
+  id: number;
+  product_code?: string;
+  product_name?: string;
+}
+
+export interface InterestConfiguration {
+  id: number;
+  virtual_account_product_id: number;
+  interest_rate_type_id: number;
+  annual_interest_rate: number | string | null;
+  income_tax_rate: number | string | null;
+  minimum_balance_for_interest: number | string | null;
+  calculation_method?: string | null;
+  compounding_period?: string | null;
+  interest_basis?: string | null;
+  accrual_frequency?: string | null;
+  rounding_rule?: string | null;
+  calculation_timing?: string | null;
+  promotional_start_date?: string | null;
+  promotional_end_date?: string | null;
+  is_active?: boolean;
+  interest_rate_type?: InterestRateType;
+  virtual_account_product?: VirtualAccountProduct;
+}
+
+export interface InterestRateTier {
+  id: number;
+  interest_config_id?: number;
+  tier_order: number;
+  balance_min: number | string;
+  balance_max?: number | string | null;
+  interest_rate: number | string;
+  description?: string | null;
 }
 
 export async function fetchAccounts(): Promise<ApiResponse<Account[]>> {
@@ -505,6 +559,109 @@ export async function fetchAccounts(): Promise<ApiResponse<Account[]>> {
     return {
       success: false,
       error: "Failed to load accounts. Please try again.",
+      details: error,
+    };
+  }
+}
+
+export async function fetchInterestConfigurations(
+  productId: number
+): Promise<ApiResponse<InterestConfiguration[]>> {
+  try {
+    const params = new URLSearchParams({
+      include: "interest_rate_type,virtual_account_product",
+    });
+    const url = buildBankingUrl(`/interest_configurations?${params.toString()}`);
+
+    const response = await fetchWithRetry(url, {
+      method: "GET",
+      headers: buildHeaders({
+        "Content-Type": "application/json",
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        return {
+          success: false,
+          error: "Unauthorized (401). Please sign in again to load interest configurations.",
+        };
+      }
+
+      return {
+        success: false,
+        error: `Failed to fetch interest configurations (${response.status})`,
+      };
+    }
+
+    const data = await response.json();
+    const payload = data.data || data;
+    const filtered = Array.isArray(payload)
+      ? payload.filter((config: InterestConfiguration) => {
+          const matchesProduct =
+            String(config.virtual_account_product_id) === String(productId);
+          return matchesProduct && config.is_active;
+        })
+      : [];
+
+    return {
+      success: true,
+      data: filtered,
+    };
+  } catch (error) {
+    console.error("API Error:", error);
+    return {
+      success: false,
+      error: "Failed to load interest configurations. Please try again.",
+      details: error,
+    };
+  }
+}
+
+export async function fetchInterestRateTiers(
+  configId: number
+): Promise<ApiResponse<InterestRateTier[]>> {
+  try {
+    const url = buildBankingUrl("/interest_rate_tiers");
+
+    const response = await fetchWithRetry(url, {
+      method: "GET",
+      headers: buildHeaders({
+        "Content-Type": "application/json",
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        return {
+          success: false,
+          error: "Unauthorized (401). Please sign in again to load interest tiers.",
+        };
+      }
+
+      return {
+        success: false,
+        error: `Failed to fetch interest tiers (${response.status})`,
+      };
+    }
+
+    const data = await response.json();
+    const payload = data.data || data;
+    const filtered = Array.isArray(payload)
+      ? payload
+          .filter((tier: InterestRateTier) => String(tier.interest_config_id) === String(configId))
+          .sort((a: InterestRateTier, b: InterestRateTier) => a.tier_order - b.tier_order)
+      : [];
+
+    return {
+      success: true,
+      data: filtered,
+    };
+  } catch (error) {
+    console.error("API Error:", error);
+    return {
+      success: false,
+      error: "Failed to load interest tiers. Please try again.",
       details: error,
     };
   }

@@ -1,37 +1,22 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { loginWithCoreAuth } from "@/lib/api";
-import { getAccessToken, saveAccessToken } from "@/lib/auth";
+import { saveAccessToken } from "@/lib/auth";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [authState, setAuthState] = useState({
-    isAuthReady: false,
-    isAuthenticated: false,
+  const { isAuthReady, isAuthenticated } = useAuthGuard({
+    requireAuth: false,
+    redirectIfAuthed: "/",
   });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    const token = getAccessToken();
-
-    if (token) {
-      queueMicrotask(() => {
-        setAuthState({ isAuthReady: true, isAuthenticated: true });
-      });
-      router.replace("/");
-      return;
-    }
-
-    queueMicrotask(() => {
-      setAuthState({ isAuthReady: true, isAuthenticated: false });
-    });
-  }, [router]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -39,7 +24,7 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     const response = await loginWithCoreAuth({
-      email: email.trim(),
+      email_or_phone: email.trim(),
       password,
     });
 
@@ -54,7 +39,7 @@ export default function LoginPage() {
     router.push("/");
   };
 
-  if (!authState.isAuthReady || authState.isAuthenticated) {
+  if (!isAuthReady || isAuthenticated) {
     return null;
   }
 
@@ -67,7 +52,7 @@ export default function LoginPage() {
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-workbench-700 mb-1">
-              Email
+              Email or phone
             </label>
             <input
               id="email"

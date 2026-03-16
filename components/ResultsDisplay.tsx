@@ -6,6 +6,7 @@ import SummaryCard from "./SummaryCard";
 import DailyBreakdownTable from "./DailyBreakdownTable";
 import AccountingRecords from "./AccountingRecords";
 import BalanceChart from "./BalanceChart";
+import InterestChart from "./InterestChart";
 
 interface ResultsDisplayProps {
   result: SimulationResult;
@@ -51,7 +52,7 @@ export default function ResultsDisplay({ result }: ResultsDisplayProps) {
           amount={result.net_interest}
           subtitle="Interest credited to account"
           icon="✨"
-          gradient="from-primary-600 to-accent-600"
+          gradient="from-action to-action-hover"
         />
       </motion.div>
 
@@ -60,7 +61,7 @@ export default function ResultsDisplay({ result }: ResultsDisplayProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
       >
-        <BalanceChart data={result.daily_breakdown} />
+        <DailyBreakdownTable data={result.daily_breakdown} />
       </motion.div>
 
       <motion.div
@@ -68,13 +69,21 @@ export default function ResultsDisplay({ result }: ResultsDisplayProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
       >
-        <DailyBreakdownTable data={result.daily_breakdown} />
+        <InterestChart data={result.daily_breakdown} />
       </motion.div>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
+      >
+        <BalanceChart data={result.daily_breakdown} />
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6 }}
       >
         <AccountingRecords records={result.accounting_records} />
       </motion.div>

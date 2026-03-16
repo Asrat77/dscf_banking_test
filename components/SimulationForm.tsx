@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import TransactionBuilder from "./TransactionBuilder";
 import { SimulationFormData } from "@/hooks/useSimulation";
 import {
   Transaction,
@@ -11,13 +10,31 @@ import {
   validateRequiredField,
   validateTransactions,
 } from "@/lib/validation";
-import { Account, fetchAccounts } from "@/lib/api";
+import {
+  Account,
+  InterestConfiguration,
+  InterestRateTier,
+  fetchAccounts,
+  fetchInterestConfigurations,
+  fetchInterestRateTiers,
+} from "@/lib/api";
+export type InterestPanelState = {
+  config: InterestConfiguration | null;
+  tiers: InterestRateTier[];
+  isLoading: boolean;
+  error: string | null;
+  hasMultipleActive: boolean;
+  hasSelection: boolean;
+};
 
 interface SimulationFormProps {
   formData: SimulationFormData;
   onChange: (data: SimulationFormData) => void;
-  onSubmit: () => void;
+  onSubmit: (resolvedInitialBalance?: number) => void;
   isLoading: boolean;
+  onInterestStateChange?: (state: InterestPanelState) => void;
+  onInterestReloadReady?: (reload: () => void) => void;
+  onTransactionsError?: (message: string | null) => void;
 }
 
 export default function SimulationForm({
@@ -25,20 +42,19 @@ export default function SimulationForm({
   onChange,
   onSubmit,
   isLoading,
+  onInterestStateChange,
+  onInterestReloadReady,
+  onTransactionsError,
 }: SimulationFormProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [isAccountsLoading, setIsAccountsLoading] = useState(true);
   const [accountsError, setAccountsError] = useState<string | null>(null);
-  const [qaAccessToken, setQaAccessToken] = useState(() => {
-    if (typeof window === "undefined") {
-      return "";
-    }
-
-    return localStorage.getItem("accessToken") || "";
-  });
-  const [tokenMessage, setTokenMessage] = useState<string | null>(null);
-
+  const [interestConfig, setInterestConfig] = useState<InterestConfiguration | null>(null);
+  const [interestTiers, setInterestTiers] = useState<InterestRateTier[]>([]);
+  const [isInterestLoading, setIsInterestLoading] = useState(false);
+  const [interestError, setInterestError] = useState<string | null>(null);
+  const [hasMultipleActiveConfigs, setHasMultipleActiveConfigs] = useState(false);
   const loadAccounts = useCallback(async () => {
     setIsAccountsLoading(true);
     setAccountsError(null);
@@ -63,30 +79,127 @@ export default function SimulationForm({
     };
   }, [loadAccounts]);
 
-  const handleSaveToken = () => {
-    if (typeof window === "undefined") {
+  const selectedAccount = useMemo(
+    () => accounts.find((account) => account.account_number === formData.accountId),
+    [accounts, formData.accountId]
+  );
+  const selectedProductId =
+    selectedAccount?.virtual_account_product?.id ?? selectedAccount?.virtual_account_product_id ?? null;
+  const accountBalanceValue =
+    selectedAccount?.current_balance != null
+      ? Number(selectedAccount.current_balance)
+      : null;
+
+  useEffect(() => {
+    if (!selectedAccount) {
       return;
     }
 
-    if (!qaAccessToken.trim()) {
-      setTokenMessage("Please paste a valid access token before saving.");
+    if (formData.initialBalance) {
       return;
     }
 
-    localStorage.setItem("accessToken", qaAccessToken.trim());
-    setTokenMessage("Access token saved. Reloading accounts...");
-    loadAccounts();
-  };
-
-  const handleClearToken = () => {
-    if (typeof window === "undefined") {
+    if (accountBalanceValue == null || Number.isNaN(accountBalanceValue)) {
       return;
     }
 
-    localStorage.removeItem("accessToken");
-    setQaAccessToken("");
-    setTokenMessage("Access token cleared.");
-  };
+    onChange({
+      ...formData,
+      initialBalance: accountBalanceValue.toFixed(2),
+    });
+  }, [accountBalanceValue, formData, onChange, selectedAccount]);
+
+  const resetInterestState = useCallback(() => {
+    setInterestConfig(null);
+    setInterestTiers([]);
+    setHasMultipleActiveConfigs(false);
+    setInterestError(null);
+    setIsInterestLoading(false);
+  }, []);
+
+  const loadInterestConfiguration = useCallback(async () => {
+    if (!selectedProductId) {
+      resetInterestState();
+      return;
+    }
+
+    setIsInterestLoading(true);
+    setInterestError(null);
+    setHasMultipleActiveConfigs(false);
+
+    const response = await fetchInterestConfigurations(selectedProductId);
+
+    if (!response.success) {
+      setInterestConfig(null);
+      setInterestTiers([]);
+      setInterestError(response.error || "Failed to load interest configuration.");
+      setIsInterestLoading(false);
+      return;
+    }
+
+    const configs = response.data || [];
+    if (configs.length === 0) {
+      setInterestConfig(null);
+      setInterestTiers([]);
+      setHasMultipleActiveConfigs(false);
+      setIsInterestLoading(false);
+      return;
+    }
+
+    const [config] = configs;
+    setInterestConfig(config);
+    setHasMultipleActiveConfigs(configs.length > 1);
+
+    if (config?.id) {
+      const tiersResponse = await fetchInterestRateTiers(config.id);
+      if (tiersResponse.success) {
+        setInterestTiers(tiersResponse.data || []);
+      } else {
+        setInterestTiers([]);
+        setInterestError(tiersResponse.error || "Failed to load interest tiers.");
+      }
+    } else {
+      setInterestTiers([]);
+    }
+
+    setIsInterestLoading(false);
+  }, [resetInterestState, selectedProductId]);
+
+  useEffect(() => {
+    if (!selectedProductId) {
+      resetInterestState();
+      return;
+    }
+
+    void loadInterestConfiguration();
+  }, [loadInterestConfiguration, resetInterestState, selectedProductId]);
+
+  useEffect(() => {
+    onInterestStateChange?.({
+      config: interestConfig,
+      tiers: interestTiers,
+      isLoading: isInterestLoading,
+      error: interestError,
+      hasMultipleActive: hasMultipleActiveConfigs,
+      hasSelection: Boolean(formData.accountId),
+    });
+  }, [
+    hasMultipleActiveConfigs,
+    interestConfig,
+    interestError,
+    interestTiers,
+    isInterestLoading,
+    formData.accountId,
+    onInterestStateChange,
+  ]);
+
+  useEffect(() => {
+    onTransactionsError?.(errors.transactions ?? null);
+  }, [errors.transactions, onTransactionsError]);
+
+  useEffect(() => {
+    onInterestReloadReady?.(loadInterestConfiguration);
+  }, [loadInterestConfiguration, onInterestReloadReady]);
 
   const updateField = (field: keyof SimulationFormData, value: string | Transaction[]) => {
     onChange({
@@ -107,9 +220,13 @@ export default function SimulationForm({
       newErrors.accountId = "Account number is required";
     }
 
-    const balanceValidation = validateInitialBalance(formData.initialBalance);
-    if (!balanceValidation.isValid) {
-      newErrors.initialBalance = balanceValidation.error || "";
+    if (formData.initialBalance) {
+      const balanceValidation = validateInitialBalance(formData.initialBalance);
+      if (!balanceValidation.isValid) {
+        newErrors.initialBalance = balanceValidation.error || "";
+      }
+    } else if (accountBalanceValue == null || Number.isNaN(accountBalanceValue)) {
+      newErrors.initialBalance = "Initial balance is required when account balance is unavailable.";
     }
 
     if (!formData.startDate) {
@@ -143,7 +260,10 @@ export default function SimulationForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
-      onSubmit();
+      const resolvedInitialBalance = formData.initialBalance
+        ? parseFloat(formData.initialBalance)
+        : accountBalanceValue ?? undefined;
+      onSubmit(resolvedInitialBalance);
     }
   };
 
@@ -156,53 +276,6 @@ export default function SimulationForm({
       <h2 className="text-2xl font-bold text-gray-900 mb-6">
         Interest Simulation
       </h2>
-
-      <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4">
-        <p className="text-sm font-semibold text-amber-900">QA Access Token</p>
-        <p className="mt-1 text-xs text-amber-800">
-          No login page is configured in this app. Paste a valid access token to authorize account loading.
-        </p>
-        <div className="mt-3 space-y-2">
-          <textarea
-            value={qaAccessToken}
-            onChange={(e) => {
-              setQaAccessToken(e.target.value);
-              setTokenMessage(null);
-            }}
-            placeholder="Paste Bearer access token"
-            rows={3}
-            className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-400"
-            disabled={isLoading}
-          />
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleSaveToken}
-              className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700"
-              disabled={isLoading}
-            >
-              Save Token
-            </button>
-            <button
-              type="button"
-              onClick={handleClearToken}
-              className="rounded-md border border-amber-400 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100"
-              disabled={isLoading}
-            >
-              Clear Token
-            </button>
-            <button
-              type="button"
-              onClick={loadAccounts}
-              className="rounded-md border border-amber-400 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100"
-              disabled={isLoading || isAccountsLoading}
-            >
-              Reload Accounts
-            </button>
-          </div>
-          {tokenMessage && <p className="text-xs text-amber-900">{tokenMessage}</p>}
-        </div>
-      </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
@@ -222,7 +295,11 @@ export default function SimulationForm({
             {accounts.map((account) => (
               <option key={account.id} value={account.account_number}>
                 {account.account_number}
-                {account.customer_name ? ` - ${account.customer_name}` : ""}
+                {account.customer_name
+                  ? ` - ${account.customer_name}`
+                  : account.name
+                    ? ` - ${account.name}`
+                    : ""}
               </option>
             ))}
           </select>
@@ -249,6 +326,9 @@ export default function SimulationForm({
             className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-action focus:border-transparent transition-all"
             disabled={isLoading}
           />
+          <p className="mt-1 text-xs text-gray-500">
+            Defaults to account balance if left blank.
+          </p>
           {errors.initialBalance && (
             <p className="mt-1 text-sm text-red-600">{errors.initialBalance}</p>
           )}
@@ -260,7 +340,7 @@ export default function SimulationForm({
               Start Date <span className="text-red-600">*</span>
             </label>
             <input
-              id="startDate"
+              id="simulationStartDate"
               type="date"
               value={formData.startDate}
               onChange={(e) => updateField("startDate", e.target.value)}
@@ -273,11 +353,11 @@ export default function SimulationForm({
           </div>
 
           <div>
-            <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="simulationEndDate" className="block text-sm font-medium text-gray-700 mb-2">
               End Date <span className="text-red-600">*</span>
             </label>
             <input
-              id="endDate"
+              id="simulationEndDate"
               type="date"
               value={formData.endDate}
               onChange={(e) => updateField("endDate", e.target.value)}
@@ -294,22 +374,11 @@ export default function SimulationForm({
           <p className="text-sm text-red-600">{errors.dateRange}</p>
         )}
 
-        <TransactionBuilder
-          transactions={formData.transactions}
-          onChange={(transactions) => updateField("transactions", transactions)}
-          startDate={formData.startDate}
-          endDate={formData.endDate}
-        />
-
-        {errors.transactions && (
-          <p className="text-sm text-red-600">{errors.transactions}</p>
-        )}
-
         <div className="flex gap-4 pt-4">
           <button
             type="submit"
             disabled={isLoading}
-            className="flex-1 px-6 py-3 bg-gradient-to-r from-action to-action-hover hover:from-action-hover hover:to-action text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-primary w-full py-3"
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
