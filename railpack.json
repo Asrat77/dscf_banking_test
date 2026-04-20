@@ -1,0 +1,7 @@
+{
+  "$schema": "https://railpack.com/schema.json",
+  "provider": "node",
+  "packages": {
+    "manager": "bun"
+  }
+}
