@@ -70,7 +70,7 @@ function normalizeDailyBreakdown(rawDailyBreakdown: unknown): DailyBreakdown[] {
     const row = item as RawDailyBreakdown;
     const balance = toNumber(row.balance);
     const dailyInterest = toNumber(
-      row.interest ?? row.daily_interest ?? row.daily_interest_accrued
+      row.interest ?? row.daily_interest ?? row.daily_interest_accrued,
     );
     const transactionTotal = toNumber(row.transaction_total);
 
@@ -124,10 +124,13 @@ function normalizeAccountingRecords(rawRecords: unknown): AccountingEntry[] {
     const date = row.date ? String(row.date) : "";
 
     return {
-      account: type.replaceAll("_", " ").replace(/\b\w/g, (m) => m.toUpperCase()),
+      account: type
+        .replaceAll("_", " ")
+        .replace(/\b\w/g, (m) => m.toUpperCase()),
       debit: type === "tax" ? amount : null,
       credit: type === "tax" ? null : amount,
-      description: [currency, date].filter(Boolean).join(" • ") || "Simulation entry",
+      description:
+        [currency, date].filter(Boolean).join(" • ") || "Simulation entry",
     };
   });
 }
@@ -165,20 +168,23 @@ function extract422ErrorMessage(errorData: Record<string, unknown>): string {
   }
 
   if (errorData.errors && typeof errorData.errors === "object") {
-    const fieldMessages = Object.entries(errorData.errors as Record<string, unknown>)
-      .flatMap(([field, value]) => {
-        if (Array.isArray(value)) {
-          return value
-            .map((message) => (typeof message === "string" ? `${field}: ${message}` : ""))
-            .filter(Boolean);
-        }
+    const fieldMessages = Object.entries(
+      errorData.errors as Record<string, unknown>,
+    ).flatMap(([field, value]) => {
+      if (Array.isArray(value)) {
+        return value
+          .map((message) =>
+            typeof message === "string" ? `${field}: ${message}` : "",
+          )
+          .filter(Boolean);
+      }
 
-        if (typeof value === "string") {
-          return [`${field}: ${value}`];
-        }
+      if (typeof value === "string") {
+        return [`${field}: ${value}`];
+      }
 
-        return [];
-      });
+      return [];
+    });
 
     if (fieldMessages.length > 0) {
       return fieldMessages.join("; ");
@@ -188,7 +194,7 @@ function extract422ErrorMessage(errorData: Record<string, unknown>): string {
   return "Invalid request. Please check your input and try again.";
 }
 
-const API_BASE_URL = "/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const BANKING_API_BASE = `${API_BASE_URL}/banking`;
 const CORE_API_BASE = `${API_BASE_URL}/core`;
 const MAX_RETRIES = 3;
@@ -285,9 +291,10 @@ function extractLoginToken(payload: unknown): string | null {
   }
 
   const data = payload as Record<string, unknown>;
-  const nested = data.data && typeof data.data === "object"
-    ? (data.data as Record<string, unknown>)
-    : null;
+  const nested =
+    data.data && typeof data.data === "object"
+      ? (data.data as Record<string, unknown>)
+      : null;
 
   const directToken =
     typeof data.access_token === "string"
@@ -316,7 +323,7 @@ function extractLoginToken(payload: unknown): string | null {
 }
 
 export async function loginWithCoreAuth(
-  credentials: LoginRequest
+  credentials: LoginRequest,
 ): Promise<ApiResponse<LoginData>> {
   try {
     const response = await fetch(buildCoreUrl("/auth/login"), {
@@ -372,13 +379,13 @@ export async function loginWithCoreAuth(
 }
 
 async function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function fetchWithRetry(
   url: string,
   options: RequestInit,
-  retries = MAX_RETRIES
+  retries = MAX_RETRIES,
 ): Promise<Response> {
   try {
     const response = await fetch(url, options);
@@ -399,10 +406,12 @@ async function fetchWithRetry(
 }
 
 export async function runSimulation(
-  request: SimulationRequest
+  request: SimulationRequest,
 ): Promise<ApiResponse<SimulationResult>> {
   try {
-    const url = buildBankingUrl(`/accounts/${request.account_number}/interest_simulations`);
+    const url = buildBankingUrl(
+      `/accounts/${request.account_number}/interest_simulations`,
+    );
 
     const response = await fetchWithRetry(url, {
       method: "POST",
@@ -421,7 +430,8 @@ export async function runSimulation(
       if (response.status === 404) {
         return {
           success: false,
-          error: "Account not found. Please check the account ID and try again.",
+          error:
+            "Account not found. Please check the account ID and try again.",
         };
       }
 
@@ -565,13 +575,15 @@ export async function fetchAccounts(): Promise<ApiResponse<Account[]>> {
 }
 
 export async function fetchInterestConfigurations(
-  productId: number
+  productId: number,
 ): Promise<ApiResponse<InterestConfiguration[]>> {
   try {
     const params = new URLSearchParams({
       include: "interest_rate_type,virtual_account_product",
     });
-    const url = buildBankingUrl(`/interest_configurations?${params.toString()}`);
+    const url = buildBankingUrl(
+      `/interest_configurations?${params.toString()}`,
+    );
 
     const response = await fetchWithRetry(url, {
       method: "GET",
@@ -584,7 +596,8 @@ export async function fetchInterestConfigurations(
       if (response.status === 401) {
         return {
           success: false,
-          error: "Unauthorized (401). Please sign in again to load interest configurations.",
+          error:
+            "Unauthorized (401). Please sign in again to load interest configurations.",
         };
       }
 
@@ -619,7 +632,7 @@ export async function fetchInterestConfigurations(
 }
 
 export async function fetchInterestRateTiers(
-  configId: number
+  configId: number,
 ): Promise<ApiResponse<InterestRateTier[]>> {
   try {
     const url = buildBankingUrl("/interest_rate_tiers");
@@ -635,7 +648,8 @@ export async function fetchInterestRateTiers(
       if (response.status === 401) {
         return {
           success: false,
-          error: "Unauthorized (401). Please sign in again to load interest tiers.",
+          error:
+            "Unauthorized (401). Please sign in again to load interest tiers.",
         };
       }
 
@@ -649,8 +663,14 @@ export async function fetchInterestRateTiers(
     const payload = data.data || data;
     const filtered = Array.isArray(payload)
       ? payload
-          .filter((tier: InterestRateTier) => String(tier.interest_config_id) === String(configId))
-          .sort((a: InterestRateTier, b: InterestRateTier) => a.tier_order - b.tier_order)
+          .filter(
+            (tier: InterestRateTier) =>
+              String(tier.interest_config_id) === String(configId),
+          )
+          .sort(
+            (a: InterestRateTier, b: InterestRateTier) =>
+              a.tier_order - b.tier_order,
+          )
       : [];
 
     return {
