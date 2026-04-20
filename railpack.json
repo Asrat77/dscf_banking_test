@@ -1,6 +1,6 @@
 {
   "$schema": "https://railpack.com/schema.json",
-  "provider": "node",
+  "provider": "bun",
   "packages": {
     "manager": "bun"
   }
