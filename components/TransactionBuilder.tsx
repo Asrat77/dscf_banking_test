@@ -195,7 +195,7 @@ export default function TransactionBuilder({
                       onClick={() => updateTransaction(index, "type", "deposit")}
                       className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                         transaction.type === "deposit"
-                          ? "bg-green-600 text-white shadow-md"
+                          ? "btn-toggle-positive shadow-md"
                           : "btn-secondary text-gray-700"
                       }`}
                     >
@@ -206,7 +206,7 @@ export default function TransactionBuilder({
                       onClick={() => updateTransaction(index, "type", "withdrawal")}
                       className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                         transaction.type === "withdrawal"
-                          ? "bg-red-600 text-white shadow-md"
+                          ? "btn-toggle-negative shadow-md"
                           : "btn-secondary text-gray-700"
                       }`}
                     >
