@@ -56,7 +56,7 @@ export default function LoginPage() {
             </label>
             <input
               id="email"
-              type="email"
+              type="text"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               className="w-full rounded-md border border-workbench-300 bg-white px-3 py-2 text-sm text-workbench-900 focus:outline-none focus:ring-2 focus:ring-action/30"
@@ -83,7 +83,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded-md bg-action px-4 py-2 text-sm font-semibold text-white hover:bg-action-hover disabled:cursor-not-allowed disabled:opacity-60"
+            className="btn-primary w-full"
           >
             {isSubmitting ? "Signing in..." : "Sign in"}
           </button>

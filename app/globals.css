@@ -77,17 +77,22 @@ body {
 }
 
 .btn-primary {
+  appearance: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0.5rem 1rem;
   border-radius: 0.5rem;
+  border: 1px solid transparent;
   font-weight: 600;
   font-size: 0.875rem;
+  line-height: 1.2;
   color: #fff;
   background-color: var(--action-primary, #0f766e);
   transition: background-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+  cursor: pointer;
+  text-decoration: none;
 }
 
 .btn-primary:hover {
@@ -101,17 +106,21 @@ body {
 }
 
 .btn-secondary {
+  appearance: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0.5rem 1rem;
   border-radius: 0.5rem;
+  border: 1px solid #cbd5e1;
   font-weight: 600;
   font-size: 0.875rem;
+  line-height: 1.2;
   color: var(--text-primary);
   background-color: #f8fafc;
-  border: 1px solid #cbd5e1;
   transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
+  text-decoration: none;
 }
 
 .btn-secondary:hover {
@@ -122,6 +131,48 @@ body {
 .btn-secondary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.btn-toggle-positive {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #16a34a;
+  background-color: #16a34a;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.btn-toggle-positive:hover {
+  background-color: #15803d;
+  border-color: #15803d;
+}
+
+.btn-toggle-negative {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #dc2626;
+  background-color: #dc2626;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.btn-toggle-negative:hover {
+  background-color: #b91c1c;
+  border-color: #b91c1c;
 }
 
 .qa-label {

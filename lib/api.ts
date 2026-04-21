@@ -194,9 +194,25 @@ function extract422ErrorMessage(errorData: Record<string, unknown>): string {
   return "Invalid request. Please check your input and try again.";
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
-const BANKING_API_BASE = `${API_BASE_URL}/banking`;
-const CORE_API_BASE = `${API_BASE_URL}/core`;
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "/api").replace(
+  /\/+$/,
+  "",
+);
+
+function scopedApiBase(scope: "banking" | "core"): string {
+  if (API_BASE_URL.endsWith(`/${scope}`)) {
+    return API_BASE_URL;
+  }
+
+  if (API_BASE_URL.endsWith("/banking") || API_BASE_URL.endsWith("/core")) {
+    return API_BASE_URL.replace(/\/(banking|core)$/, `/${scope}`);
+  }
+
+  return `${API_BASE_URL}/${scope}`;
+}
+
+const BANKING_API_BASE = scopedApiBase("banking");
+const CORE_API_BASE = scopedApiBase("core");
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
 
