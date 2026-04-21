@@ -194,7 +194,7 @@ function extract422ErrorMessage(errorData: Record<string, unknown>): string {
   return "Invalid request. Please check your input and try again.";
 }
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "/api").replace(
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(
   /\/+$/,
   "",
 );

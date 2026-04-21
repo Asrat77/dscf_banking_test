@@ -21,11 +21,11 @@ const nextConfig: NextConfig = {
 
     return [
       {
-        source: "/api/banking/:path*",
+        source: "/banking/:path*",
         destination: `${bankingBaseUrl}/:path*`,
       },
       {
-        source: "/api/core/:path*",
+        source: "/core/:path*",
         destination: `${coreBaseUrl}/:path*`,
       },
     ];
