@@ -84,6 +84,12 @@ export default function LoginPage() {
             type="submit"
             disabled={isSubmitting}
             className="btn-primary w-full"
+            style={{
+              backgroundColor: "#0f766e",
+              color: "#ffffff",
+              border: "1px solid #0f766e",
+              minHeight: "42px",
+            }}
           >
             {isSubmitting ? "Signing in..." : "Sign in"}
           </button>

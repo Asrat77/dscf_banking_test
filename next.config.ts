@@ -1,26 +1,24 @@
 import type { NextConfig } from "next";
 
-const rawBackendBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-const backendBaseUrl = rawBackendBaseUrl.replace(/\/+$/, "");
-
 const hasExplicitBackendBaseUrl = Boolean(process.env.NEXT_PUBLIC_API_BASE_URL);
+const backendBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/+$/, "");
 
-const bankingBaseUrl = !hasExplicitBackendBaseUrl
-  ? "/banking"
-  : backendBaseUrl.endsWith("/banking")
+const bankingBaseUrl = backendBaseUrl.endsWith("/banking")
+  ? backendBaseUrl
+  : `${backendBaseUrl}/banking`;
+
+const coreBaseUrl = backendBaseUrl.endsWith("/banking")
+  ? backendBaseUrl.replace(/\/banking$/, "/core")
+  : backendBaseUrl.endsWith("/core")
     ? backendBaseUrl
-    : `${backendBaseUrl}/banking`;
-
-const coreBaseUrl = !hasExplicitBackendBaseUrl
-  ? "/core"
-  : backendBaseUrl.endsWith("/banking")
-    ? backendBaseUrl.replace(/\/banking$/, "/core")
-    : backendBaseUrl.endsWith("/core")
-      ? backendBaseUrl
-      : `${backendBaseUrl}/core`;
+    : `${backendBaseUrl}/core`;
 
 const nextConfig: NextConfig = {
   async rewrites() {
+    if (!hasExplicitBackendBaseUrl) {
+      return [];
+    }
+
     return [
       {
         source: "/api/banking/:path*",
@@ -29,10 +27,6 @@ const nextConfig: NextConfig = {
       {
         source: "/api/core/:path*",
         destination: `${coreBaseUrl}/:path*`,
-      },
-      {
-        source: "/api/:path*",
-        destination: hasExplicitBackendBaseUrl ? `${backendBaseUrl}/:path*` : "/:path*",
       },
     ];
   },
